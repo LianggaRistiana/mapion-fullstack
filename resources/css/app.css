@@ -157,3 +157,20 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Tambahkan ke file CSS */
+.popup-form-container {
+    width: 300px; /* Sesuaikan ukuran lebar popup sesuai kebutuhan */
+    min-height: 200px; /* Atur tinggi minimum agar cukup untuk menampung form */
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.leaflet-popup-content-wrapper {
+    width: 350px !important; /* Atur lebar wrapper popup */
+    height: auto !important; /* Biarkan tinggi popup disesuaikan dengan konten */
+}
+
+.leaflet-popup-tip {
+    display: none; /* Hapus pointer (segitiga kecil) dari popup */
+}

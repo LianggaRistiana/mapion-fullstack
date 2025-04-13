@@ -20,11 +20,24 @@ type Location = {
     lng: number;
 };
 
-export default function Dashboard() {
+type Props = {
+    locations: Location[]; // Declare the locations prop
+};
+
+
+export default function Dashboard({ locations }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="MAP" />
-            <Map></Map>
+            <Map locations={locations} addMode={true} center={[locations[locations.length - 1].lat, locations[locations.length - 1].lng]}
+            />
+            <div>
+                {locations.map((location) => (
+                    <div key={location.id}>
+                        {location.title}
+                    </div>
+                ))}
+            </div>
         </AppLayout>
     );
 }

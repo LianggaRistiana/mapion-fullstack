@@ -1,36 +1,9 @@
-// import { useEffect, useRef } from 'react';
-// import L from 'leaflet';
-// import 'leaflet/dist/leaflet.css';
-
-// export default function Map() {
-//     const mapRef = useRef<HTMLDivElement | null>(null);
-
-//     useEffect(() => {
-//         if (!mapRef.current) return;
-
-//         const map = L.map(mapRef.current).setView([51.505, -0.09], 13);
-
-//         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-//             attribution:
-//                 '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-//         }).addTo(map);
-
-//         L.marker([51.505, -0.09]).addTo(map)
-//             .bindPopup('Hello from Leaflet!')
-//             .openPopup();
-
-//         return () => {
-//             map.remove();
-//         };
-//     }, []);
-
-//     return <div ref={mapRef} style={{ height: '500px', width: '100%' }} />;
-// }
-
-
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useForm } from '@inertiajs/react';
+import ReactDOM from 'react-dom';
+import AddLocationForm from '../molecules/add-location-form';
 
 interface Location {
     id: number;
@@ -47,9 +20,13 @@ interface MapProps {
     onSelectedLocation?: (location?: [number, number]) => void;
 }
 
-export default function Map({ addMode, locations, center = [51.505, -0.09], onSelectedLocation }: MapProps) {
+export default function Map({ addMode, locations, center = [-8.4095, 115.1889], onSelectedLocation }: MapProps) {
     const mapRef = useRef<HTMLDivElement | null>(null);
     const [clickedPosition, setClickedPosition] = useState<[number, number] | null>(null);
+    const [clickedLatLng, setClickedLatLng] = useState<[number, number] | null>(null);
+    const [tempMarker, setTempMarker] = useState<L.Marker | null>(null);
+    const [popupElement, setPopupElement] = useState<HTMLDivElement | null>(null);
+
     const icon = new L.Icon({
         iconUrl: '/marker.svg',
         iconSize: [25, 41],
@@ -59,62 +36,76 @@ export default function Map({ addMode, locations, center = [51.505, -0.09], onSe
     useEffect(() => {
         if (!mapRef.current) return;
 
-        // Initialize the map
         const map = L.map(mapRef.current).setView(center, 13);
 
-        // TileLayer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution:
-                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         }).addTo(map);
 
-        // Render markers based on `locations` prop
+        // Render existing markers
         locations?.forEach((location) => {
             L.marker([location.lat, location.lng], { icon })
                 .addTo(map)
                 .bindPopup(`
-          <div class="text-center">
-            <h3 class="font-bold text-lg">${location.title}</h3>
-            <p class="text-sm">${location.desc}</p>
-          </div>
-        `);
+                    <div class="text-center">
+                        <h3 class="font-bold text-lg">${location.title}</h3>
+                        <p class="text-sm">${location.desc}</p>
+                    </div>
+                `);
         });
 
-        // Add marker on map click if `addMode` is true
-        let tempMarker: L.Marker | null = null;
+        const handleClick = (e: L.LeafletMouseEvent) => {
+            const { lat, lng } = e.latlng;
+
+            // Buat div untuk popup
+            const popupDiv = document.createElement('div');
+            setPopupElement(popupDiv); // Simpan referensi popup div
+
+            setClickedPosition([lat, lng]);
+            setClickedLatLng([lat, lng]);
+
+            // Buat popup dan tampilkan di lokasi yang diklik
+            const popup = L.popup()
+                .setLatLng([lat, lng]) // Tentukan posisi popup
+                .setContent(popupDiv)  // Tentukan konten popup
+                .openOn(map);          // Tampilkan popup di peta
+
+            // Menampilkan form di dalam popup
+            setPopupElement(popupDiv); // Populasi form dalam popup
+
+            onSelectedLocation?.([lat, lng]);
+        };
+
+
         if (addMode) {
-            map.on('click', (e) => {
-                const { lat, lng } = e.latlng;
-
-                if (tempMarker) {
-                    tempMarker.remove();
-                }
-
-                tempMarker = L.marker([lat, lng], { icon }).addTo(map);
-                tempMarker.bindPopup(`Koordinat: ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
-
-                setClickedPosition([lat, lng]);
-                onSelectedLocation?.([lat, lng]);
-            });
+            map.on('click', handleClick);
         }
 
-        // Cleanup when component unmounts
         return () => {
-            map.remove();
+            map.off('click', handleClick); // cleanup listener
+            map.remove(); // cleanup map
         };
     }, [center, locations, addMode, onSelectedLocation]);
 
     return (
         <div>
-            <div
-                ref={mapRef}
-                style={{ height: '500px', width: '100%' }}
-            />
-            {/* Show clicked position marker */}
-            {clickedPosition && (
-                <div className="clicked-position">
-                    Koordinat: {clickedPosition[0].toFixed(6)}, {clickedPosition[1].toFixed(6)}
-                </div>
+            <div ref={mapRef} style={{ height: '100vh', width: '100%' }} />
+
+
+            {/* Render AddLocationForm di dalam popup jika popupElement tersedia */}
+            {popupElement && clickedLatLng && ReactDOM.createPortal(
+                <div className="popup-form-container">
+                    <h3 className="text-center text-lg font-bold">Tambah Lokasi</h3>
+                    <AddLocationForm
+                        latlng={clickedLatLng}
+                        onCancel={() => tempMarker?.closePopup()}
+                        onSave={() => {
+                            tempMarker?.closePopup();
+                            // Tambahkan logika penyimpanan di sini
+                        }}
+                    />
+                </div>,
+                popupElement // Ini merender form ke dalam popup div yang telah dibuat
             )}
         </div>
     );
